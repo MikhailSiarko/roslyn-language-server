@@ -1,5 +1,7 @@
 # Roslyn Language Server
 
+[![Rust](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml/badge.svg)](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml)
+
 Roslyn Language Server is an easy-to-use language server implementation built on top of the Roslyn APIs. It provides Language Server Protocol (LSP) features for C# (and other .NET languages supported by Roslyn) with a focus on simplicity, extensibility, and minimal setup.
 
 ## Goals
