@@ -20,3 +20,7 @@ A small wrapper around the language server used by the official C# Visual Studio
 ## Notes
 - All paths must be absolute so the server can resolve project references reliably.
 - The wrapper does not modify the language server binary; it only starts it with the requested arguments and exposes an LSP endpoint usable from any editor that can talk LSP (Helix, Neovim + nvim-lspconfig, etc.).
+
+## Inspired by
+[SofusA csharp-language-server](https://github.com/SofusA/csharp-language-server)
+[seblyng roslyn.nvim](https://github.com/seblyng/roslyn.nvim)
