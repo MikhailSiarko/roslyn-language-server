@@ -2,41 +2,21 @@
 
 [![Rust](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml/badge.svg)](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml)
 
-Roslyn Language Server is an easy-to-use language server implementation built on top of the Roslyn APIs. It provides Language Server Protocol (LSP) features for C# (and other .NET languages supported by Roslyn) with a focus on simplicity, extensibility, and minimal setup.
+A small wrapper around the language server used by the official C# Visual Studio Code extension (Microsoft.CodeAnalysis.LanguageServer). It launches and configures that language server so it can be used from editors other than VS Code (for example, Helix or Neovim). The wrapper handles starting the server with the right arguments and exposes a standard Language Server Protocol (LSP) endpoint that other editors can connect to.
 
-## Goals
-- Provide a lightweight, easy-to-integrate LSP server using the Roslyn compiler platform.
-- Offer core editor features (completion, diagnostics, go-to-definition, hover, symbol search) out of the box.
-- Make it simple to extend and customize language behaviors via Roslyn analyzers and workspace services.
-- Support smooth integration with editors and IDEs that speak LSP.
+## Usage
+- Purpose: run Microsoft.CodeAnalysis.LanguageServer for an arbitrary editor by supplying the executable and the solution/projects to load.
+- Behavior: the wrapper launches the provided Microsoft.CodeAnalysis.LanguageServer executable, passes the configured solution and projects to preload, and proxies LSP traffic over stdio or the chosen transport so non-VS Code editors can talk to the Roslyn language server.
 
-## Key Features
-- Diagnostics and real-time error reporting using Roslyn analyzers
-- Auto-completion and signature help powered by Roslyn semantic model
-- Go-to-definition, find-references, and document symbols
-- Hover information and rich tooltips
-- Workspace/solution awareness and project-level analysis
-- Simple extension points for adding custom analyzers or code actions
+## Required arguments
+- cmd — absolute path to a Microsoft.CodeAnalysis.LanguageServer executable to run.
+- solution_path — absolute path to the .sln file to load. (Optional)
+- project_paths — one or more absolute paths to project files (.csproj) to load. This can be provided as a repeatable flag (e.g. --project_paths /p1 --project_paths /p2) or as a comma-separated list, depending on how you start the wrapper. (Optional, nut ignored if solution_path is provided)
 
-## Quick Start
-1. Clone the repository:
-   git clone https://example.com/roslyn-language-server.git
+## Example
+- CLI (repeatable project paths):
+  ./roslyn-ls-wrapper --cmd "/absolute/path/to/Microsoft.CodeAnalysis.LanguageServer" --solution_path "/absolute/path/to/MySolution.sln" --project_paths "/absolute/path/to/ProjectA/ProjectA.csproj" --project_paths "/absolute/path/to/ProjectB/ProjectB.csproj"
 
-2. Build and run the server:
-   cd roslyn-language-server
-   dotnet build
-   dotnet run --project src/RoslynLanguageServer
-
-3. Configure your editor to point at the running LSP endpoint (stdio, TCP, or named pipe, depending on your setup).
-
-## Getting Started for Integrators
-- The server exposes standard LSP endpoints; editors can connect over stdio or TCP.
-- Configure workspace roots to enable solution and project discovery.
-- Add Roslyn analyzers or custom workspace services to extend behavior.
-- See the docs/ folder for sample editor configurations and protocol settings.
-
-## Contributing
-Contributions are welcome. Please open issues for bugs or feature requests and submit pull requests for enhancements. Follow the coding and test guidelines in CONTRIBUTING.md.
-
-## License
-This project is licensed under the MIT License. See LICENSE for details.
+## Notes
+- All paths must be absolute so the server can resolve project references reliably.
+- The wrapper does not modify the language server binary; it only starts it with the requested arguments and exposes an LSP endpoint usable from any editor that can talk LSP (Helix, Neovim + nvim-lspconfig, etc.).
