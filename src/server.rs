@@ -5,9 +5,9 @@ use std::process::Stdio;
 
 use crate::path::Binary;
 
-pub async fn start(
-    binary: Binary,
-    logs_dir: &PathBuf,
+pub async fn start<'a>(
+    binary: Binary<'a>,
+    logs_dir: PathBuf,
 ) -> Result<(smol::process::ChildStdin, smol::process::ChildStdout)> {
     let mut command = match binary {
         Binary::Exe(path) => Command::new(path),

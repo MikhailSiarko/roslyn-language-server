@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result, anyhow};
 use clap::Parser;
-use roslyn_ls::{args::Args, path, server};
+use roslyn_ls::{args::Args, notification::Notification, path, server};
 use smol::{
     Unblock,
     io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
@@ -11,10 +11,11 @@ use smol::{
 fn main() -> Result<()> {
     smol::block_on(async {
         let args = Args::parse();
-        println!("{:#?}", args);
-        let binary = path::get_binary(Path::new(&args.cmd))?;
-        let logs_path = PathBuf::from(args.logs_path);
-        let (mut server_stdin, server_stdout) = server::start(binary, &logs_path).await?;
+        let open_notification = Notification::new(args.solution_path, args.project_paths)?;
+        let server_path = PathBuf::from(args.cmd);
+        let binary = path::get_binary(&server_path)?;
+        let logs_path = path::get_logs_path(&server_path).await?;
+        let (mut server_stdin, server_stdout) = server::start(binary, logs_path).await?;
 
         let stdin = Unblock::new(std::io::stdin());
 
@@ -28,14 +29,16 @@ fn main() -> Result<()> {
         let stdin_to_stream = async {
             let mut stdin = BufReader::new(stdin);
             loop {
-                let mut buffer = vec![0; 6000];
+                let mut buffer = Vec::with_capacity(2000);
                 let bytes_read = stdin
                     .read(&mut buffer)
                     .await
                     .expect("Unable to read incoming client notification");
+
                 if bytes_read == 0 {
-                    break; // EOF reached
+                    break; // EOF
                 }
+
                 server_stdin
                     .write_all(&buffer[..bytes_read])
                     .await
@@ -45,14 +48,12 @@ fn main() -> Result<()> {
                     .expect("Unable to convert buffer to string");
 
                 if notification.contains("initialize") {
-                    let open_solution_notification = create_open_notification(
-                        &notification,
-                        args.solution_path,
-                        args.project_paths,
-                    );
+                    let open_notification_string = open_notification
+                        .serialize()
+                        .expect("Unable to serialize open solution/project notification");
 
                     server_stdin
-                        .write_all(open_solution_notification.as_bytes())
+                        .write_all(open_notification_string.as_bytes())
                         .await
                         .expect("Unable to send open solution notification to server");
 
@@ -62,7 +63,18 @@ fn main() -> Result<()> {
             io::copy(&mut stdin, &mut server_stdin).await
         };
 
-        smol::future::zip(stdin_to_stream, stream_to_stdout);
-        Ok(())
+        let (stdin_result, stdout_result) =
+            smol::future::zip(stdin_to_stream, stream_to_stdout).await;
+
+        match (stdin_result, stdout_result) {
+            (Err(stdin_err), Err(stdout_err)) => Err(anyhow!(
+                "Both stdin and stdout streams encountered errors\n\t- {}\n\t- {}",
+                stdin_err,
+                stdout_err
+            )),
+            (Err(stdin_err), _) => Err(anyhow!(stdin_err)),
+            (_, Err(stdout_err)) => Err(anyhow!(stdout_err)),
+            _ => Ok(()),
+        }
     })
 }
