@@ -1,7 +1,5 @@
 # Roslyn Language Server
 
-[![Rust](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml/badge.svg)](https://github.com/MikhailSiarko/roslyn-language-server/actions/workflows/rust.yml)
-
 A small wrapper around the language server used by the official C# Visual Studio Code extension (Microsoft.CodeAnalysis.LanguageServer). It launches and configures that language server so it can be used from editors other than VS Code (for example, Helix or Neovim). The wrapper handles starting the server with the right arguments and exposes a standard Language Server Protocol (LSP) endpoint that other editors can connect to.
 
 ## Usage
