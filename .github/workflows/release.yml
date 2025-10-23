@@ -12,16 +12,12 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            suffix: x64-linux
           - target: x86_64-apple-darwin
             os: macos-latest
-            suffix: x64-mac
           - target: aarch64-apple-darwin
             os: macos-latest
-            suffix: aarch64-mac
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            suffix: x64-win
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +25,6 @@ jobs:
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: roslyn-ls
-          target: ${{ matrix.suffix }}
+          target: ${{ matrix.target }}
           zip: all
           token: ${{ secrets.GITHUB_TOKEN }}
