@@ -1,9 +1,19 @@
 [package]
-name = "roslyn_ls"
+name = "roslyn-ls"
 version = "0.1.0"
 authors = ["Mikhail Siarko <mikhail.siarko@gmail.com>"]
+description = "A wrapper around Roslyn API that makes it easier to integrate it into other text editors (not VSCode)"
 edition = "2024"
+license = "MIT"
+license_path = "LICENSE"
 
 [dependencies]
 anyhow = "1.0.100"
-tokio = { version = "1.48", features = ["macros", "net", "fs", "rt-multi-thread", "process"] }
+clap = { version = "4.5.50", features = ["derive"] }
+faccess = "0.2.4"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+smol = "2.0.2"
+
+[dev-dependencies]
+tempfile = "3.23.0"
