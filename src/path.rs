@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use faccess::{self, PathExt};
 use std::path::{Path, PathBuf};
 
@@ -48,7 +48,7 @@ pub async fn get_logs_path(server_path: &Path) -> Result<PathBuf> {
     if !logs_path.exists() {
         smol::fs::create_dir_all(&logs_path)
             .await
-            .expect("Unable to create logs directory");
+            .context("Unable to create logs directory")?;
     }
 
     Ok(logs_path)
