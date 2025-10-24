@@ -29,7 +29,7 @@ fn main() -> Result<()> {
         let stdin_to_stream = async {
             let mut stdin = BufReader::new(stdin);
             loop {
-                let mut buffer = Vec::with_capacity(2000);
+                let mut buffer = Vec::with_capacity(6000);
                 let bytes_read = stdin
                     .read(&mut buffer)
                     .await
