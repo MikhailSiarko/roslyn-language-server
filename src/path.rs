@@ -1,6 +1,9 @@
 use anyhow::{Context, Result, anyhow, bail};
 use faccess::{self, PathExt};
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 pub enum Binary<'a> {
     Exe(&'a Path),
@@ -52,6 +55,47 @@ pub async fn get_logs_path(server_path: &Path) -> Result<PathBuf> {
     }
 
     Ok(logs_path)
+}
+
+pub fn find_solution_file(workspace_path: &Path) -> Option<String> {
+    find_extension(
+        workspace_path,
+        &vec![OsStr::new("sln"), OsStr::new("slnx"), OsStr::new("slnf")],
+    )
+    .map(|s| s.display().to_string())
+    .next()
+}
+
+pub fn find_projects_files(workspace_path: &Path) -> Vec<String> {
+    find_extension(workspace_path, &vec![OsStr::new("csproj")])
+        .map(|p| p.display().to_string())
+        .collect()
+}
+
+fn find_extension(root_path: &Path, ext: &Vec<&'static OsStr>) -> impl Iterator<Item = PathBuf> {
+    let mut found_paths: Vec<(usize, PathBuf)> = ignore::Walk::new(root_path)
+        .filter_map(|res| res.ok())
+        .filter_map(|d| path_for_file_with_extension(&d, ext).map(|p| (d.depth(), p)))
+        .collect();
+
+    found_paths.sort_by(|(depth_a, path_a), (depth_b, path_b)| {
+        depth_a.cmp(depth_b).then_with(|| path_a.cmp(path_b))
+    });
+
+    found_paths
+        .into_iter()
+        .map(|(_, p)| p.canonicalize())
+        .filter_map(|r| r.ok())
+}
+
+fn path_for_file_with_extension(
+    dir: &ignore::DirEntry,
+    ext: &Vec<&'static OsStr>,
+) -> Option<PathBuf> {
+    if dir.path().is_file() && dir.path().extension().is_some_and(|e| ext.contains(&e)) {
+        return Some(dir.path().to_path_buf());
+    }
+    None
 }
 
 #[cfg(test)]

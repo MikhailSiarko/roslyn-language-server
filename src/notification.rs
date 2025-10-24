@@ -1,5 +1,9 @@
+use std::path::Path;
+
 use anyhow::{Result, bail};
 use serde::Serialize;
+
+use crate::path;
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
@@ -26,10 +30,13 @@ pub struct ProjectParams {
 }
 
 impl Notification {
-    pub fn new(solution_path: Option<String>, project_paths: Option<Vec<String>>) -> Result<Self> {
+    pub fn from_sln_or_proj_path(
+        solution_path: Option<String>,
+        project_paths: Option<Vec<String>>,
+    ) -> Result<Self> {
         let Some(solution) = solution_path else {
             let Some(projects) = project_paths else {
-                bail!("None of the required paths provided");
+                bail!("None of the required paths provided")
             };
 
             return Ok(Notification {
@@ -39,11 +46,37 @@ impl Notification {
             });
         };
 
-        return Ok(Notification {
+        Ok(Notification {
             jsonrpc: String::from("2.0"),
             method: String::from("solution/open"),
             params: Params::Solution(SolutionParams { solution }),
-        });
+        })
+    }
+
+    pub fn from_working_dir(working_dir: Option<String>) -> Result<Self> {
+        let Some(working_dir) = working_dir else {
+            bail!("No working directory provided")
+        };
+
+        let working_path = Path::new(&working_dir);
+        let Some(solution) = path::find_solution_file(working_path) else {
+            let projects = path::find_projects_files(working_path);
+            if projects.is_empty() {
+                bail!("No solution or project found")
+            };
+
+            return Ok(Notification {
+                jsonrpc: String::from("2.0"),
+                method: String::from("project/open"),
+                params: Params::Project(ProjectParams { projects }),
+            });
+        };
+
+        Ok(Notification {
+            jsonrpc: String::from("2.0"),
+            method: String::from("solution/open"),
+            params: Params::Solution(SolutionParams { solution }),
+        })
     }
 
     pub fn serialize(self) -> Result<String> {
@@ -65,14 +98,14 @@ mod test {
 
     #[test]
     fn notification_new_returns_error_when_no_paths_provided() {
-        let sln_notification_result = Notification::new(None, None);
+        let sln_notification_result = Notification::from_sln_or_proj_path(None, None);
         assert!(sln_notification_result.is_err());
     }
 
     #[test]
     fn notification_new_returns_sln_when_sln_path_is_some() {
         let sln_notification_result =
-            Notification::new(Some(String::from("/path/solution.sln")), None);
+            Notification::from_sln_or_proj_path(Some(String::from("/path/solution.sln")), None);
 
         match sln_notification_result {
             Ok(Notification {
@@ -86,8 +119,10 @@ mod test {
 
     #[test]
     fn notification_new_returns_proj_when_proj_path_is_some() {
-        let sln_notification_result =
-            Notification::new(None, Some(vec![String::from("/path/project.csproj")]));
+        let sln_notification_result = Notification::from_sln_or_proj_path(
+            None,
+            Some(vec![String::from("/path/project.csproj")]),
+        );
 
         match sln_notification_result {
             Ok(Notification {
@@ -106,7 +141,7 @@ mod test {
 
     #[test]
     fn notification_new_returns_sln_when_sln_and_proj_path_is_some() {
-        let sln_notification_result = Notification::new(
+        let sln_notification_result = Notification::from_sln_or_proj_path(
             Some(String::from("/path/solution.sln")),
             Some(vec![String::from("/path/project.csproj")]),
         );
@@ -124,7 +159,7 @@ mod test {
     #[test]
     fn notification_serialize_returns_valid_str_when_sln_path_is_some() {
         let sln_notification_result =
-            Notification::new(Some(String::from("/path/solution.sln")), None);
+            Notification::from_sln_or_proj_path(Some(String::from("/path/solution.sln")), None);
 
         match sln_notification_result {
             Ok(notification) => {

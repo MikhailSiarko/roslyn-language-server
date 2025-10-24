@@ -7,6 +7,10 @@ pub struct Args {
     #[arg(short, long)]
     pub cmd: String,
 
+    /// Absolute path to a working directory
+    #[arg(short, long)]
+    pub working_dir: Option<String>,
+
     /// Absolute path to a solution (.sln) file
     #[arg(short, long)]
     pub solution_path: Option<String>,
