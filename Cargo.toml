@@ -5,7 +5,6 @@ authors = ["Mikhail Siarko <mikhail.siarko@gmail.com>"]
 description = "A wrapper around Roslyn API that makes it easier to integrate it into other text editors (not VSCode)"
 edition = "2024"
 license = "MIT"
-license_path = "LICENSE"
 
 [dependencies]
 anyhow = "1.0.100"
