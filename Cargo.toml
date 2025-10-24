@@ -1,6 +1,6 @@
 [package]
 name = "roslyn-ls"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Mikhail Siarko <mikhail.siarko@gmail.com>"]
 description = "A wrapper around Roslyn API that makes it easier to integrate it into other text editors (not VSCode)"
 edition = "2024"
