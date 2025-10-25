@@ -19,13 +19,15 @@ pub async fn start<'a>(
         }
     };
 
-    let log_arg = format!("--extensionLogDirectory={}", logs_dir.display());
+    let logs_dir_str = logs_dir.display().to_string();
+    let log_arg = format!("--extensionLogDirectory={}", logs_dir_str);
     let command = command
         .arg("--logLevel=Information")
         .arg(log_arg)
         .arg("--stdio")
         .stdout(Stdio::piped())
         .stdin(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()?;
 
     match (command.stdin, command.stdout) {
