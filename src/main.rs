@@ -14,9 +14,9 @@ fn main() -> Result<()> {
         let server_path = PathBuf::from(args.cmd);
         let binary = path::get_binary(&server_path)?;
         let logs_path = path::get_logs_path(&server_path).await?;
-        let open_notification = match (&args.solution_path, &args.project_paths) {
+        let open_notification = match (&args.solution, &args.projects) {
             (None, None) => Notification::from_working_dir(args.working_dir)?,
-            _ => Notification::from_sln_or_proj_path(args.solution_path, args.project_paths)?,
+            _ => Notification::from_sln_or_proj_path(args.solution, args.projects)?,
         };
 
         let (mut server_stdin, server_stdout) = server::start(binary, logs_path).await?;

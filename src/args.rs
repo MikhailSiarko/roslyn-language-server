@@ -13,9 +13,9 @@ pub struct Args {
 
     /// Absolute path to a solution (.sln) file
     #[arg(short, long)]
-    pub solution_path: Option<String>,
+    pub solution: Option<String>,
 
     /// Absolute paths to project(s) (.csproj) files. Ignored if correct solution path is provided
     #[arg(short, long)]
-    pub project_paths: Option<Vec<String>>,
+    pub projects: Option<Vec<String>>,
 }
