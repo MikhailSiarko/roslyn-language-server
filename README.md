@@ -1,6 +1,6 @@
 # Roslyn Language Server
 
-## WIP
+## Work in Progress
 
 A small wrapper around the language server used by the official C# Visual Studio Code extension (Microsoft.CodeAnalysis.LanguageServer). It launches and configures that language server so it can be used from editors other than VS Code (for example, Helix or Neovim). The wrapper handles starting the server with the right arguments and exposes a standard Language Server Protocol (LSP) endpoint that other editors can connect to.
 
@@ -19,7 +19,7 @@ A small wrapper around the language server used by the official C# Visual Studio
 ## Example
 
 - CLI (repeatable project paths):
-  ./roslyn-ls-wrapper --cmd "/absolute/path/to/Microsoft.CodeAnalysis.LanguageServer" --solution "/absolute/path/to/MySolution.sln" --projects "/absolute/path/to/ProjectA/ProjectA.csproj" --projects "/absolute/path/to/ProjectB/ProjectB.csproj" --working_dir "/absolute/path/to/ProjectA"
+  ./roslyn-ls-wrapper --cmd "/absolute/path/to/Microsoft.CodeAnalysis.LanguageServer" --working_dir "/absolute/path/to/working_dir"
 
 ## Notes
 
