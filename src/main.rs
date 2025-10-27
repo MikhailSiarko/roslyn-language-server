@@ -1,83 +1,48 @@
-use std::path::PathBuf;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use anyhow::{Ok, Result, anyhow};
+use anyhow::Result;
 use clap::Parser;
-use roslyn_ls::{args::Args, notification::Notification, path, server};
+use roslyn_ls::{
+    args::Args,
+    hooks::InitializeHook,
+    path::{self},
+};
 use smol::{
     Unblock,
-    io::{self, AsyncReadExt, AsyncWriteExt, BufReader},
+    io::{BufReader, BufWriter},
 };
 
 fn main() -> Result<()> {
     smol::block_on(async {
         let args = Args::parse();
         let server_path = PathBuf::from(args.cmd);
-        let binary = path::get_binary(&server_path)?;
+        let cmd = path::cmd(&server_path)?;
+        let workspace_path = Path::new(&args.working_dir);
+        let solution_path = path::find_solution_file(workspace_path);
+        let projects_path = path::find_projects_files(workspace_path);
         let logs_path = path::get_logs_path(&server_path).await?;
-        let open_notification = match (&args.solution, &args.projects) {
-            (None, None) => Notification::from_working_dir(args.working_dir)?,
-            _ => Notification::from_sln_or_proj_path(args.solution, args.projects)?,
-        };
-
-        let (mut server_stdin, server_stdout) = server::start(binary, logs_path).await?;
         let stdin = Unblock::new(std::io::stdin());
+        let stdout = Unblock::new(std::io::stdout());
 
-        let stream_to_stdout = async {
-            let mut reader = BufReader::new(server_stdout);
-            let mut stdout = Unblock::new(std::io::stdout());
+        let proxy = lsp_proxy::ProxyBuilder::new()
+            .with_hook(
+                "initialize",
+                Arc::new(InitializeHook::new(solution_path, projects_path)),
+            )
+            .build();
 
-            io::copy(&mut reader, &mut stdout).await
-        };
-
-        let stdin_to_stream = async {
-            let mut stdin = BufReader::new(stdin);
-            loop {
-                let mut buffer = Vec::with_capacity(6000);
-                let bytes_read = stdin
-                    .read(&mut buffer)
-                    .await
-                    .expect("Unable to read incoming client notification");
-
-                if bytes_read == 0 {
-                    break; // EOF
-                }
-
-                server_stdin
-                    .write_all(&buffer[..bytes_read])
-                    .await
-                    .expect("Unable to forward client notification to server");
-
-                let notification = String::from_utf8(buffer[..bytes_read].to_vec())
-                    .expect("Unable to convert buffer to string");
-
-                if notification.contains("initialize") {
-                    let open_notification_string = open_notification
-                        .serialize()
-                        .expect("Unable to serialize open solution/project notification");
-
-                    server_stdin
-                        .write_all(open_notification_string.as_bytes())
-                        .await
-                        .expect("Unable to send open solution notification to server");
-
-                    break;
-                }
-            }
-            io::copy(&mut stdin, &mut server_stdin).await
-        };
-
-        let (stdin_result, stdout_result) =
-            smol::future::zip(stdin_to_stream, stream_to_stdout).await;
-
-        match (stdin_result, stdout_result) {
-            (Err(stdin_err), Err(stdout_err)) => Err(anyhow!(
-                "Both stdin and stdout streams encountered errors\n\t- {}\n\t- {}",
-                stdin_err,
-                stdout_err
-            )),
-            (Err(stdin_err), _) => Err(anyhow!(stdin_err)),
-            (_, Err(stdout_err)) => Err(anyhow!(stdout_err)),
-            _ => Ok(()),
-        }
+        let logs_arg = format!("--extensionLogDirectory={}", logs_path.display());
+        proxy
+            .spawn(
+                &cmd,
+                &["--logLevel=Information", logs_arg.as_str(), "--stdio"],
+                BufReader::new(stdin),
+                BufWriter::new(stdout),
+            )
+            .await?;
+        Ok(())
     })
 }
