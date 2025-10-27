@@ -4,13 +4,9 @@ use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
 };
+use url::Url;
 
-pub enum Binary<'a> {
-    Exe(&'a Path),
-    Dll(&'a Path),
-}
-
-pub fn get_binary<'a>(server_path: &'a Path) -> Result<Binary<'a>> {
+pub fn cmd(server_path: &Path) -> Result<String> {
     if !server_path.exists() {
         bail!(
             "The specified language server path does not exist: {:?}",
@@ -32,10 +28,11 @@ pub fn get_binary<'a>(server_path: &'a Path) -> Result<Binary<'a>> {
         );
     }
 
+    let cmd = server_path.display().to_string();
     let bin = match server_path.extension().and_then(|e| e.to_str()) {
-        Some("exe") => Binary::Exe(server_path),
-        Some("dll") => Binary::Dll(server_path),
-        Some(_) if server_path.executable() => Binary::Exe(server_path),
+        Some("exe") => cmd,
+        Some("dll") => format!("dotnet exec {cmd}"),
+        Some(_) if server_path.executable() => cmd,
         _ => bail!("No language server executable found"),
     };
 
@@ -62,13 +59,13 @@ pub fn find_solution_file(workspace_path: &Path) -> Option<String> {
         workspace_path,
         &vec![OsStr::new("sln"), OsStr::new("slnx"), OsStr::new("slnf")],
     )
-    .map(|s| s.display().to_string())
+    .filter_map(|s| Url::from_file_path(s.as_path()).map(|u| u.to_string()).ok())
     .next()
 }
 
 pub fn find_projects_files(workspace_path: &Path) -> Vec<String> {
     find_extension(workspace_path, &vec![OsStr::new("csproj")])
-        .map(|p| p.display().to_string())
+        .filter_map(|p| Url::from_file_path(p.as_path()).map(|p| p.to_string()).ok())
         .collect()
 }
 
@@ -100,9 +97,7 @@ fn path_for_file_with_extension(
 
 #[cfg(test)]
 mod tests {
-    use crate::path::Binary;
-
-    use super::get_binary;
+    use super::cmd;
     use std::fs;
     use tempfile::TempDir;
 
@@ -129,67 +124,57 @@ mod tests {
     }
 
     #[test]
-    fn get_binary_returns_error_when_path_not_exist() {
+    fn cmd_returns_error_when_path_not_exist() {
         let tmp = TempDir::new().unwrap();
         create_dirs(&tmp);
         let path = tmp.path().join("one").join("one.e");
 
-        let result = get_binary(&path);
+        let result = cmd(&path);
 
         assert!(result.is_err());
     }
 
     #[test]
-    fn get_binary_returns_ok_when_path_exists() {
+    fn cmd_returns_ok_when_path_exists() {
         let tmp = TempDir::new().unwrap();
         create_dirs(&tmp);
         let path = tmp.path().join("two").join("lsp.exe");
 
-        let result = get_binary(&path);
+        let result = cmd(&path);
 
         assert!(result.is_ok());
     }
 
     #[test]
-    fn get_binary_returns_error_when_path_exists_but_dir() {
+    fn cmd_returns_error_when_path_exists_but_dir() {
         let tmp = TempDir::new().unwrap();
         create_dirs(&tmp);
         let path = tmp.path().join("two");
 
-        let result = get_binary(&path);
+        let result = cmd(&path);
 
         assert!(result.is_err());
     }
 
     #[test]
-    fn get_binary_returns_dll_when_path_exists() {
+    fn cmd_returns_dll_when_path_exists() {
         let tmp = TempDir::new().unwrap();
         create_dirs(&tmp);
         let path = tmp.path().join("two").join("lsp.dll");
 
-        let Ok(binary) = get_binary(&path) else {
+        let Ok(_) = cmd(&path) else {
             panic!("Error returned!");
         };
-
-        match binary {
-            Binary::Exe(_) => panic!("Exe returned!"),
-            _ => (),
-        }
     }
 
     #[test]
-    fn get_binary_returns_exe_when_path_exists() {
+    fn cmd_returns_exe_when_path_exists() {
         let tmp = TempDir::new().unwrap();
         create_dirs(&tmp);
         let path = tmp.path().join("two").join("lsp.exe");
 
-        let Ok(binary) = get_binary(&path) else {
+        let Ok(_) = cmd(&path) else {
             panic!("Error returned!");
         };
-
-        match binary {
-            Binary::Dll(_) => panic!("Exe returned!"),
-            _ => (),
-        }
     }
 }

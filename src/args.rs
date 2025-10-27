@@ -9,13 +9,5 @@ pub struct Args {
 
     /// Absolute path to a working directory
     #[arg(short, long)]
-    pub working_dir: Option<String>,
-
-    /// Absolute path to a solution (.sln) file
-    #[arg(short, long)]
-    pub solution: Option<String>,
-
-    /// Absolute paths to project(s) (.csproj) files. Ignored if correct solution path is provided
-    #[arg(short, long)]
-    pub projects: Option<Vec<String>>,
+    pub working_dir: String,
 }
