@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use lsp_proxy::{Hook, HookOutput, HookResult, Message};
+use lsp_proxy::{
+    Hook, HookOutput, HookResult, Message,
+    hooks::{Direction, Request},
+};
 use serde_json::json;
 
 pub struct InitializeHook {
@@ -18,7 +21,7 @@ impl InitializeHook {
 
 #[async_trait]
 impl Hook for InitializeHook {
-    async fn on_request(&self, message: Message) -> HookResult {
+    async fn on_request(&self, request: Request) -> HookResult {
         let notification = match &self.solution_path {
             Some(sln) => Message::notification("solution/open", Some(json!({ "solution": sln }))),
             None if !self.projects_path.is_empty() => Message::notification(
@@ -26,9 +29,10 @@ impl Hook for InitializeHook {
                 Some(json!({ "projects": self.projects_path })),
             ),
             None => {
-                return Ok(HookOutput::new(message));
+                return Ok(HookOutput::new(Message::Request(request)));
             }
         };
-        Ok(HookOutput::new(message).with_notification(notification))
+        Ok(HookOutput::new(Message::Request(request))
+            .with_message(Direction::ToServer, notification))
     }
 }

@@ -1,5 +1,7 @@
 use std::{
+    io::Error,
     path::{Path, PathBuf},
+    process::Stdio,
     sync::Arc,
 };
 
@@ -10,39 +12,63 @@ use roslyn_ls::{
     hooks::InitializeHook,
     path::{self},
 };
-use smol::{
-    Unblock,
-    io::{BufReader, BufWriter},
+use tokio::{
+    io::{BufReader, BufWriter, stdin, stdout},
+    process::Command,
 };
 
-fn main() -> Result<()> {
-    smol::block_on(async {
-        let args = Args::parse();
-        let server_path = PathBuf::from(args.cmd);
-        let cmd = path::cmd(&server_path)?;
-        let workspace_path = Path::new(&args.working_dir);
-        let solution_path = path::find_solution_file(workspace_path);
-        let projects_path = path::find_projects_files(workspace_path);
-        let logs_path = path::get_logs_path(&server_path).await?;
-        let stdin = Unblock::new(std::io::stdin());
-        let stdout = Unblock::new(std::io::stdout());
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
+    let server_path = PathBuf::from(args.cmd);
+    let cmd = path::cmd(&server_path)?;
+    let workspace_path = Path::new(&args.working_dir);
+    let solution_path = path::find_solution_file(workspace_path);
+    let projects_path = path::find_projects_files(workspace_path);
+    let logs_path = path::get_logs_path(&server_path).await?;
+    let stdin = BufReader::new(stdin());
+    let stdout = BufWriter::new(stdout());
 
-        let proxy = lsp_proxy::ProxyBuilder::new()
-            .with_hook(
-                "initialize",
-                Arc::new(InitializeHook::new(solution_path, projects_path)),
-            )
-            .build();
+    let mut lsp = Command::new(cmd)
+        .args(vec![
+            "--logLevel=Information".to_owned(),
+            format!("--extensionLogDirectory={}", logs_path.display()),
+            "--stdio".to_owned(),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
 
-        let logs_arg = format!("--extensionLogDirectory={}", logs_path.display());
-        proxy
-            .spawn(
-                &cmd,
-                &["--logLevel=Information", logs_arg.as_str(), "--stdio"],
-                BufReader::new(stdin),
-                BufWriter::new(stdout),
-            )
-            .await?;
-        Ok(())
-    })
+    let server_writer = lsp
+        .stdin
+        .take()
+        .map(BufWriter::new)
+        .ok_or(Error::other("Failed to get stdin"))?;
+    let server_reader = lsp
+        .stdout
+        .take()
+        .map(BufReader::new)
+        .ok_or(Error::other("Failed to get stdout"))?;
+
+    let proxy = lsp_proxy::ProxyBuilder::new()
+        .with_hook(
+            "initialize",
+            Arc::new(InitializeHook::new(solution_path, projects_path)),
+        )
+        // .with_hook(
+        //     "workspace/projectInitializationComplete",
+        //     Arc::new(WorkspaceProjectInitializationComplete::new()),
+        // )
+        // .with_hook(
+        //     "textDocument/didOpen",
+        //     Arc::new(roslyn_ls::hooks::DocumentDidOpenHook::new()),
+        // )
+        .build();
+
+    proxy
+        .forward(server_reader, server_writer, stdin, stdout)
+        .await?;
+    Ok(())
 }

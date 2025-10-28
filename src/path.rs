@@ -46,7 +46,7 @@ pub async fn get_logs_path(server_path: &Path) -> Result<PathBuf> {
         .ok_or_else(|| anyhow!("Unable to determine logs path"))?;
 
     if !logs_path.exists() {
-        smol::fs::create_dir_all(&logs_path)
+        tokio::fs::create_dir_all(&logs_path)
             .await
             .context("Unable to create logs directory")?;
     }

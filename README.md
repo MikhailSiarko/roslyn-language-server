@@ -12,8 +12,6 @@ A small wrapper around the language server used by the official C# Visual Studio
 ## Required arguments
 
 - cmd — an absolute path to a Microsoft.CodeAnalysis.LanguageServer executable to run.
-- solution — an absolute path to the .sln file to load. (Optional)
-- projects — one or more absolute paths to project files (.csproj) to load. This can be provided as a repeatable flag (e.g. --projects /p1 --projects /p2) or as a comma-separated list, depending on how you start the wrapper. (Optional, nut ignored if solution is provided)
 - working_dir — an absolute path to a project directory, if solution and projects are not provided, the directory will be scanned for a sln or csproj files. (Optional, ignored if any of solution or projects provided)
 
 ## Example
