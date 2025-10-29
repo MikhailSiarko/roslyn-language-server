@@ -11,15 +11,15 @@ use roslyn_ls::{
     State,
     args::Args,
     hooks::{
-        DocumentDidOpenHook, InitializeHook, WorkspaceProjectInitializationComplete,
-        WorkspaceRoslynNeedsRestore,
+        DocumentDidCloseHook, DocumentDidOpenHook, InitializeHook,
+        WorkspaceProjectInitializationComplete, WorkspaceRoslynNeedsRestore,
     },
     path::{self},
 };
 use tokio::{
     io::{BufReader, BufWriter, stdin, stdout},
     process::Command,
-    sync::RwLock,
+    sync::Mutex,
 };
 
 #[tokio::main]
@@ -31,8 +31,8 @@ async fn main() -> Result<()> {
     let solution_path = path::find_solution_file(workspace_path);
     let projects_path = path::find_projects_files(workspace_path);
     let logs_path = path::get_logs_path(&server_path).await?;
-    let stdin = BufReader::new(stdin());
-    let stdout = BufWriter::new(stdout());
+    let stdin = stdin();
+    let stdout = stdout();
 
     let mut lsp = Command::new(cmd)
         .args(vec![
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::inherit())
         .kill_on_drop(true)
         .spawn()?;
 
@@ -57,19 +57,23 @@ async fn main() -> Result<()> {
         .map(BufReader::new)
         .ok_or(Error::other("Failed to get stdout"))?;
 
-    let state = Arc::new(RwLock::new(State { opened_file: None }));
+    let state = Arc::new(Mutex::new(State { opened_file: None }));
     let proxy = lsp_proxy::ProxyBuilder::new()
         .with_hook(
             "initialize",
             Arc::new(InitializeHook::new(solution_path, projects_path)),
         )
         .with_hook(
-            "workspace/projectInitializationComplete",
-            Arc::new(WorkspaceProjectInitializationComplete::new(state.clone())),
+            "textDocument/didOpen",
+            Arc::new(DocumentDidOpenHook::new(state.clone())),
         )
         .with_hook(
             "textDocument/didOpen",
-            Arc::new(DocumentDidOpenHook::new(state.clone())),
+            Arc::new(DocumentDidCloseHook::new(state.clone())),
+        )
+        .with_hook(
+            "workspace/projectInitializationComplete",
+            Arc::new(WorkspaceProjectInitializationComplete::new(state.clone())),
         )
         .with_hook(
             "workspace/_roslyn_projectNeedsRestore",
@@ -80,5 +84,7 @@ async fn main() -> Result<()> {
     proxy
         .forward(server_reader, server_writer, stdin, stdout)
         .await?;
+
+    drop(lsp);
     Ok(())
 }
