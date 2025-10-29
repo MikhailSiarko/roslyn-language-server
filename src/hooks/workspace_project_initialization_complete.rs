@@ -1,20 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use lsp_proxy::{
-    Hook, HookOutput, HookResult, Message,
-    hooks::{Direction, Notification, Request},
-};
-use tokio::sync::RwLock;
+use lsp_proxy::{Hook, HookOutput, HookResult, Message, Notification, Request, message::Direction};
+use tokio::sync::Mutex;
 
 use crate::State;
 
 pub struct WorkspaceProjectInitializationComplete {
-    state: Arc<RwLock<State>>,
+    state: Arc<Mutex<State>>,
 }
 
 impl WorkspaceProjectInitializationComplete {
-    pub fn new(state: Arc<RwLock<State>>) -> Self {
+    pub fn new(state: Arc<Mutex<State>>) -> Self {
         Self { state }
     }
 }
@@ -22,7 +19,7 @@ impl WorkspaceProjectInitializationComplete {
 #[async_trait]
 impl Hook for WorkspaceProjectInitializationComplete {
     async fn on_notification(&self, notification: Notification) -> HookResult {
-        let opened_file = match self.state.read().await.opened_file {
+        let opened_file = match self.state.lock().await.opened_file {
             Some(ref uri) => uri.clone(),
             None => return Ok(HookOutput::new(Message::Notification(notification))),
         };
@@ -31,7 +28,7 @@ impl Hook for WorkspaceProjectInitializationComplete {
             HookOutput::new(Message::Notification(notification)).with_messages(vec![(
                 Direction::ToServer,
                 Message::Request(Request {
-                    id: 555,
+                    id: 99999,
                     method: "textDocument/diagnostic".to_string(),
                     params: Some(serde_json::json!({
                         "textDocument": {

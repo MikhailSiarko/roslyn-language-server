@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use lsp_proxy::{
-    Hook, HookOutput, HookResult, Message,
-    hooks::{Direction, Request},
-};
+use lsp_proxy::{Hook, HookOutput, HookResult, Message, Request, message::Direction};
 use serde_json::json;
 
 pub struct InitializeHook {

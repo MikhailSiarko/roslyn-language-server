@@ -6,18 +6,18 @@ use tokio::sync::Mutex;
 
 use crate::State;
 
-pub struct DocumentDidOpenHook {
+pub struct DocumentDidCloseHook {
     state: Arc<Mutex<State>>,
 }
 
-impl DocumentDidOpenHook {
+impl DocumentDidCloseHook {
     pub fn new(state: Arc<Mutex<State>>) -> Self {
         Self { state }
     }
 }
 
 #[async_trait]
-impl Hook for DocumentDidOpenHook {
+impl Hook for DocumentDidCloseHook {
     async fn on_notification(&self, notification: Notification) -> HookResult {
         let uri = match &notification.params {
             Some(params) => params
@@ -30,7 +30,9 @@ impl Hook for DocumentDidOpenHook {
 
         if let Some(uri) = uri {
             let mut state = self.state.lock().await;
-            state.opened_file.replace(uri);
+            if state.opened_file.as_ref() == Some(&uri) {
+                state.opened_file = None;
+            }
         }
 
         Ok(HookOutput::new(Message::Notification(notification)))
