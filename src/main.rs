@@ -8,13 +8,18 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 use roslyn_ls::{
+    State,
     args::Args,
-    hooks::InitializeHook,
+    hooks::{
+        DocumentDidOpenHook, InitializeHook, WorkspaceProjectInitializationComplete,
+        WorkspaceRoslynNeedsRestore,
+    },
     path::{self},
 };
 use tokio::{
     io::{BufReader, BufWriter, stdin, stdout},
     process::Command,
+    sync::Mutex,
 };
 
 #[tokio::main]
@@ -31,7 +36,7 @@ async fn main() -> Result<()> {
 
     let mut lsp = Command::new(cmd)
         .args(vec![
-            "--logLevel=Information".to_owned(),
+            "--logLevel=Trace".to_owned(),
             format!("--extensionLogDirectory={}", logs_path.display()),
             "--stdio".to_owned(),
         ])
@@ -52,19 +57,24 @@ async fn main() -> Result<()> {
         .map(BufReader::new)
         .ok_or(Error::other("Failed to get stdout"))?;
 
+    let state = Arc::new(Mutex::new(State { opened_file: None }));
     let proxy = lsp_proxy::ProxyBuilder::new()
         .with_hook(
             "initialize",
             Arc::new(InitializeHook::new(solution_path, projects_path)),
         )
-        // .with_hook(
-        //     "workspace/projectInitializationComplete",
-        //     Arc::new(WorkspaceProjectInitializationComplete::new()),
-        // )
-        // .with_hook(
-        //     "textDocument/didOpen",
-        //     Arc::new(roslyn_ls::hooks::DocumentDidOpenHook::new()),
-        // )
+        .with_hook(
+            "workspace/projectInitializationComplete",
+            Arc::new(WorkspaceProjectInitializationComplete::new(state.clone())),
+        )
+        .with_hook(
+            "textDocument/didOpen",
+            Arc::new(DocumentDidOpenHook::new(state.clone())),
+        )
+        .with_hook(
+            "workspace/_roslyn_projectNeedsRestore",
+            Arc::new(WorkspaceRoslynNeedsRestore::new()),
+        )
         .build();
 
     proxy

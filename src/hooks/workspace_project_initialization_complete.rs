@@ -1,49 +1,45 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
-use lsp_proxy::{Hook, HookOutput, HookResult, Message, hooks::Notification};
+use lsp_proxy::{
+    Hook, HookOutput, HookResult, Message,
+    hooks::{Direction, Notification, Request},
+};
+use tokio::sync::Mutex;
 
-pub struct WorkspaceProjectInitializationComplete;
+use crate::State;
 
-impl WorkspaceProjectInitializationComplete {
-    pub fn new() -> Self {
-        Self
-    }
+pub struct WorkspaceProjectInitializationComplete {
+    state: Arc<Mutex<State>>,
 }
 
-impl Default for WorkspaceProjectInitializationComplete {
-    fn default() -> Self {
-        Self::new()
+impl WorkspaceProjectInitializationComplete {
+    pub fn new(state: Arc<Mutex<State>>) -> Self {
+        Self { state }
     }
 }
 
 #[async_trait]
 impl Hook for WorkspaceProjectInitializationComplete {
     async fn on_notification(&self, notification: Notification) -> HookResult {
-        Ok(HookOutput::new(Message::Notification(notification)))
-        // let mut state = proxy.state().lock().unwrap();
-        // let opened_file = match state.opened_file {
-        //     Some(ref uri) => uri.clone(),
-        //     None => return Ok(HookOutput::new(Message::Notification(notification))),
-        // };
+        let opened_file = match self.state.lock().await.opened_file {
+            Some(ref uri) => uri.clone(),
+            None => return Ok(HookOutput::new(Message::Notification(notification))),
+        };
 
-        // let id = match state.latest_request_id.clone().map(|i| i.as_u64().unwrap()) {
-        //     Some(i) => i + 1,
-        //     None => 1,
-        // };
-
-        // state.latest_request_id = Some(serde_json::Value::from(id));
-
-        // Ok(
-        //     HookOutput::new(Message::Notification(notification)).with_messages(vec![
-        //         Message::Request(Request {
-        //             id: serde_json::Value::from(id),
-        //             method: "textDocument/diagnostic".to_string(),
-        //             params: Some(serde_json::json!({
-        //                 "textDocument": {
-        //                     "uri": opened_file
-        //                 }
-        //             })),
-        //         }),
-        //     ]),
-        // )
+        Ok(
+            HookOutput::new(Message::Notification(notification)).with_messages(vec![(
+                Direction::ToServer,
+                Message::Request(Request {
+                    id: 555,
+                    method: "textDocument/diagnostic".to_string(),
+                    params: Some(serde_json::json!({
+                        "textDocument": {
+                            "uri": opened_file
+                        }
+                    })),
+                }),
+            )]),
+        )
     }
 }
