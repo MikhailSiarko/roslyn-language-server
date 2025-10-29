@@ -5,16 +5,16 @@ use lsp_proxy::{
     Hook, HookOutput, HookResult, Message,
     hooks::{Direction, Notification, Request},
 };
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use crate::State;
 
 pub struct WorkspaceProjectInitializationComplete {
-    state: Arc<Mutex<State>>,
+    state: Arc<RwLock<State>>,
 }
 
 impl WorkspaceProjectInitializationComplete {
-    pub fn new(state: Arc<Mutex<State>>) -> Self {
+    pub fn new(state: Arc<RwLock<State>>) -> Self {
         Self { state }
     }
 }
@@ -22,7 +22,7 @@ impl WorkspaceProjectInitializationComplete {
 #[async_trait]
 impl Hook for WorkspaceProjectInitializationComplete {
     async fn on_notification(&self, notification: Notification) -> HookResult {
-        let opened_file = match self.state.lock().await.opened_file {
+        let opened_file = match self.state.read().await.opened_file {
             Some(ref uri) => uri.clone(),
             None => return Ok(HookOutput::new(Message::Notification(notification))),
         };

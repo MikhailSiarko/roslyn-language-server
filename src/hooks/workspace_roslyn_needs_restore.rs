@@ -4,22 +4,27 @@ use lsp_proxy::{
     hooks::{Direction, Notification, Request},
 };
 
+fn get_uuid() -> String {
+    let template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
+    let pattern = regex::Regex::new("[xy]").unwrap();
+    pattern
+        .replace_all(template, |caps: &regex::Captures| {
+            let r = rand::random::<u8>() % 16;
+            let v = if &caps[0] == "x" { r } else { (r & 0x3) | 0x8 };
+            format!("{:x}", v)
+        })
+        .to_string()
+}
+
+const RESTORE_REQUEST_ID: i64 = 293;
+
 pub struct WorkspaceRoslynNeedsRestore {
     uuid: String,
 }
 
 impl WorkspaceRoslynNeedsRestore {
     pub fn new() -> Self {
-        let template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx";
-        let pattern = regex::Regex::new("[xy]").unwrap();
-        let uuid = pattern
-            .replace_all(template, |caps: &regex::Captures| {
-                let r = rand::random::<u8>() % 16;
-                let v = if &caps[0] == "x" { r } else { (r & 0x3) | 0x8 };
-                format!("{:x}", v)
-            })
-            .to_string();
-        Self { uuid }
+        Self { uuid: get_uuid() }
     }
 }
 
@@ -30,7 +35,7 @@ impl Hook for WorkspaceRoslynNeedsRestore {
             HookOutput::new(Message::Notification(notification)).with_messages(vec![(
                 Direction::ToServer,
                 Message::Request(Request {
-                    id: 293,
+                    id: RESTORE_REQUEST_ID,
                     method: "workspace/_roslyn_restore".to_string(),
                     params: Some(serde_json::json!({
                         "partialResultToken": self.uuid
