@@ -19,7 +19,7 @@ use roslyn_ls::{
 use tokio::{
     io::{BufReader, BufWriter, stdin, stdout},
     process::Command,
-    sync::Mutex,
+    sync::RwLock,
 };
 
 #[tokio::main]
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::null())
         .kill_on_drop(true)
         .spawn()?;
 
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
         .map(BufReader::new)
         .ok_or(Error::other("Failed to get stdout"))?;
 
-    let state = Arc::new(Mutex::new(State { opened_file: None }));
+    let state = Arc::new(RwLock::new(State { opened_file: None }));
     let proxy = lsp_proxy::ProxyBuilder::new()
         .with_hook(
             "initialize",

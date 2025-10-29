@@ -3,16 +3,16 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use lsp_proxy::hooks::Notification;
 use lsp_proxy::{Hook, HookOutput, HookResult, Message};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use crate::State;
 
 pub struct DocumentDidOpenHook {
-    state: Arc<Mutex<State>>,
+    state: Arc<RwLock<State>>,
 }
 
 impl DocumentDidOpenHook {
-    pub fn new(state: Arc<Mutex<State>>) -> Self {
+    pub fn new(state: Arc<RwLock<State>>) -> Self {
         Self { state }
     }
 }
@@ -30,7 +30,7 @@ impl Hook for DocumentDidOpenHook {
         };
 
         if let Some(uri) = uri {
-            let mut state = self.state.lock().await;
+            let mut state = self.state.write().await;
             state.opened_file.replace(uri);
         }
 
