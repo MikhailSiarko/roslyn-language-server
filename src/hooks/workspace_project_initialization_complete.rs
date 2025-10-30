@@ -6,6 +6,8 @@ use tokio::sync::Mutex;
 
 use crate::State;
 
+const DIAGNOSTIC_REQUEST_ID: i64 = 999;
+
 pub struct WorkspaceProjectInitializationComplete {
     state: Arc<Mutex<State>>,
 }
@@ -28,7 +30,7 @@ impl Hook for WorkspaceProjectInitializationComplete {
             HookOutput::new(Message::Notification(notification)).with_messages(vec![(
                 Direction::ToServer,
                 Message::Request(Request {
-                    id: 99999,
+                    id: DIAGNOSTIC_REQUEST_ID,
                     method: "textDocument/diagnostic".to_string(),
                     params: Some(serde_json::json!({
                         "textDocument": {

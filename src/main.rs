@@ -28,16 +28,23 @@ async fn main() -> Result<()> {
     let server_path = PathBuf::from(args.cmd);
     let cmd = path::cmd(&server_path)?;
     let workspace_path = Path::new(&args.working_dir);
-    let solution_path = path::find_solution_file(workspace_path);
-    let projects_path = path::find_projects_files(workspace_path);
-    let logs_path = path::get_logs_path(&server_path).await?;
+    let solution_path = args
+        .solution_path
+        .or_else(|| path::find_solution_file(workspace_path));
+    let projects_path = args
+        .project_paths
+        .unwrap_or_else(|| path::find_projects_files(workspace_path));
+    let logs_path = path::get_logs_path(&server_path)
+        .await?
+        .display()
+        .to_string();
     let stdin = stdin();
     let stdout = stdout();
 
     let mut lsp = Command::new(cmd)
         .args(vec![
-            "--logLevel=Trace".to_owned(),
-            format!("--extensionLogDirectory={}", logs_path.display()),
+            "--logLevel=Information".to_owned(),
+            format!("--extensionLogDirectory={logs_path}"),
             "--stdio".to_owned(),
         ])
         .stdin(Stdio::piped())
@@ -68,7 +75,7 @@ async fn main() -> Result<()> {
             Arc::new(DocumentDidOpenHook::new(state.clone())),
         )
         .with_hook(
-            "textDocument/didOpen",
+            "textDocument/didClose",
             Arc::new(DocumentDidCloseHook::new(state.clone())),
         )
         .with_hook(

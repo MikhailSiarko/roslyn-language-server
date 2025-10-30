@@ -17,7 +17,7 @@ fn get_uuid() -> String {
         .to_string()
 }
 
-const RESTORE_REQUEST_ID: i64 = 9999;
+const RESTORE_REQUEST_ID: i64 = 998;
 
 pub struct WorkspaceRoslynNeedsRestore {
     uuid: String,
