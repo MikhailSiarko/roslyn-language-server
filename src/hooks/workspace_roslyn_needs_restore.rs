@@ -19,39 +19,38 @@ fn get_uuid() -> String {
 
 const RESTORE_REQUEST_ID: i64 = 998;
 
-pub struct WorkspaceRoslynNeedsRestore {
-    uuid: String,
-}
+pub struct WorkspaceRoslynNeedsRestore;
 
 impl WorkspaceRoslynNeedsRestore {
     pub fn new() -> Self {
-        Self { uuid: get_uuid() }
+        Self {}
+    }
+}
+
+impl Default for WorkspaceRoslynNeedsRestore {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 #[async_trait]
 impl Hook for WorkspaceRoslynNeedsRestore {
     async fn on_notification(&self, notification: Notification) -> HookResult {
-        let mut params = match &notification.params {
+        let mut params = match notification.params {
             Some(params) => params.clone(),
             None => Value::Object(Map::new()),
         };
-        params.as_object_mut().and_then(|p| {
-            p.insert(
-                "partialResultToken".to_owned(),
-                Value::String(self.uuid.clone()),
-            )
-        });
+        params
+            .as_object_mut()
+            .and_then(|p| p.insert("partialResultToken".to_owned(), Value::String(get_uuid())));
 
-        Ok(
-            HookOutput::new(Message::Notification(notification)).with_messages(vec![(
-                Direction::ToServer,
-                Message::Request(Request {
-                    id: RESTORE_REQUEST_ID,
-                    method: "workspace/_roslyn_restore".to_string(),
-                    params: Some(params),
-                }),
-            )]),
-        )
+        Ok(HookOutput::empty().with_messages(vec![(
+            Direction::ToServer,
+            Message::Request(Request {
+                id: RESTORE_REQUEST_ID + 1,
+                method: "workspace/_roslyn_restore".to_string(),
+                params: Some(params),
+            }),
+        )]))
     }
 }

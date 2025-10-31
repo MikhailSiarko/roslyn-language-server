@@ -1,9 +1,4 @@
-use std::{
-    io::Error,
-    path::{Path, PathBuf},
-    process::Stdio,
-    sync::Arc,
-};
+use std::{io::Error, path::PathBuf, process::Stdio, sync::Arc};
 
 use anyhow::Result;
 use clap::Parser;
@@ -11,7 +6,7 @@ use roslyn_ls::{
     State,
     args::Args,
     hooks::{
-        DocumentDidCloseHook, DocumentDidOpenHook, InitializeHook,
+        DocumentDidCloseHook, DocumentDidOpenHook, InitializeHook, RemoveParams,
         WorkspaceProjectInitializationComplete, WorkspaceRoslynNeedsRestore,
     },
     path::{self},
@@ -26,14 +21,6 @@ use tokio::{
 async fn main() -> Result<()> {
     let args = Args::parse();
     let server_path = PathBuf::from(args.cmd);
-    let cmd = path::cmd(&server_path)?;
-    let workspace_path = Path::new(&args.working_dir);
-    let solution_path = args
-        .solution_path
-        .or_else(|| path::find_solution_file(workspace_path));
-    let projects_path = args
-        .project_paths
-        .unwrap_or_else(|| path::find_projects_files(workspace_path));
     let logs_path = path::get_logs_path(&server_path)
         .await?
         .display()
@@ -41,8 +28,10 @@ async fn main() -> Result<()> {
     let stdin = stdin();
     let stdout = stdout();
 
-    let mut lsp = Command::new(cmd)
+    let mut lsp = Command::new("dotnet")
         .args(vec![
+            "exec".to_owned(),
+            server_path.display().to_string(),
             "--logLevel=Information".to_owned(),
             format!("--extensionLogDirectory={logs_path}"),
             "--stdio".to_owned(),
@@ -68,7 +57,15 @@ async fn main() -> Result<()> {
     let proxy = lsp_proxy::ProxyBuilder::new()
         .with_hook(
             "initialize",
-            Arc::new(InitializeHook::new(solution_path, projects_path)),
+            Arc::new(InitializeHook::new(args.solution_path, args.project_paths)),
+        )
+        .with_hook(
+            "workspace/projectInitializationComplete",
+            Arc::new(WorkspaceProjectInitializationComplete::new(state.clone())),
+        )
+        .with_hook(
+            "workspace/_roslyn_projectNeedsRestore",
+            Arc::new(WorkspaceRoslynNeedsRestore::new()),
         )
         .with_hook(
             "textDocument/didOpen",
@@ -79,13 +76,11 @@ async fn main() -> Result<()> {
             Arc::new(DocumentDidCloseHook::new(state.clone())),
         )
         .with_hook(
-            "workspace/projectInitializationComplete",
-            Arc::new(WorkspaceProjectInitializationComplete::new(state.clone())),
+            "workspace/diagnostic/refresh",
+            Arc::new(RemoveParams::new()),
         )
-        .with_hook(
-            "workspace/_roslyn_projectNeedsRestore",
-            Arc::new(WorkspaceRoslynNeedsRestore::new()),
-        )
+        .with_hook("workspace/inlayHint/refresh", Arc::new(RemoveParams::new()))
+        .with_hook("workspace/codeLens/refresh", Arc::new(RemoveParams::new()))
         .build();
 
     proxy
