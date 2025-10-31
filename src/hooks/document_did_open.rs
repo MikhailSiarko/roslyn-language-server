@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use lsp_proxy::{Hook, HookOutput, HookResult, Message, Notification};
+use lsp_proxy::{Hook, HookOutput, HookResult, Message, Notification, Request, message::Direction};
 use tokio::sync::Mutex;
 
 use crate::State;
@@ -28,11 +28,24 @@ impl Hook for DocumentDidOpenHook {
             None => None,
         };
 
-        if let Some(uri) = uri {
+        if let Some(uri) = &uri {
             let mut state = self.state.lock().await;
-            state.opened_file.replace(uri);
+            state.opened_file.replace(uri.clone());
         }
 
-        Ok(HookOutput::new(Message::Notification(notification)))
+        Ok(
+            HookOutput::new(Message::Notification(notification)).with_message(
+                Direction::ToServer,
+                Message::Request(Request {
+                    id: 888,
+                    method: "textDocument/diagnostic".to_string(),
+                    params: Some(serde_json::json!({
+                        "textDocument": {
+                            "uri": uri.unwrap()
+                        }
+                    })),
+                }),
+            ),
+        )
     }
 }
