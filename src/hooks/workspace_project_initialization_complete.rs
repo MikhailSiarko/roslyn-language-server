@@ -6,8 +6,6 @@ use tokio::sync::Mutex;
 
 use crate::State;
 
-const DIAGNOSTIC_REQUEST_ID: i64 = 932;
-
 pub struct WorkspaceProjectInitializationComplete {
     state: Arc<Mutex<State>>,
 }
@@ -29,7 +27,7 @@ impl Hook for WorkspaceProjectInitializationComplete {
         Ok(HookOutput::empty().with_messages(vec![(
             Direction::ToServer,
             Message::Request(Request {
-                id: DIAGNOSTIC_REQUEST_ID,
+                id: rand::random::<i64>(),
                 method: "textDocument/diagnostic".to_string(),
                 params: Some(serde_json::json!({
                     "textDocument": {

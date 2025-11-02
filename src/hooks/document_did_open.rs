@@ -31,21 +31,22 @@ impl Hook for DocumentDidOpenHook {
         if let Some(uri) = &uri {
             let mut state = self.state.lock().await;
             state.opened_file.replace(uri.clone());
+            return Ok(
+                HookOutput::new(Message::Notification(notification)).with_message(
+                    Direction::ToServer,
+                    Message::Request(Request {
+                        id: rand::random::<i64>(),
+                        method: "textDocument/diagnostic".to_string(),
+                        params: Some(serde_json::json!({
+                            "textDocument": {
+                                "uri": uri
+                            }
+                        })),
+                    }),
+                ),
+            );
         }
 
-        Ok(
-            HookOutput::new(Message::Notification(notification)).with_message(
-                Direction::ToServer,
-                Message::Request(Request {
-                    id: 888,
-                    method: "textDocument/diagnostic".to_string(),
-                    params: Some(serde_json::json!({
-                        "textDocument": {
-                            "uri": uri.unwrap()
-                        }
-                    })),
-                }),
-            ),
-        )
+        Ok(HookOutput::new(Message::Notification(notification)))
     }
 }

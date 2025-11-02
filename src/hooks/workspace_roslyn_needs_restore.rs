@@ -17,8 +17,6 @@ fn get_uuid() -> String {
         .to_string()
 }
 
-const RESTORE_REQUEST_ID: i64 = 998;
-
 pub struct WorkspaceRoslynNeedsRestore;
 
 impl WorkspaceRoslynNeedsRestore {
@@ -47,7 +45,7 @@ impl Hook for WorkspaceRoslynNeedsRestore {
         Ok(HookOutput::empty().with_messages(vec![(
             Direction::ToServer,
             Message::Request(Request {
-                id: RESTORE_REQUEST_ID + 1,
+                id: rand::random::<i64>(),
                 method: "workspace/_roslyn_restore".to_string(),
                 params: Some(params),
             }),
